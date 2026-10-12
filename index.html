@@ -74,7 +74,7 @@ small{color:var(--mute)}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 input[type=checkbox]{accent-color:var(--ac);width:20px;height:20px;margin:0;flex:none}
 .note{font-size:.8rem;color:var(--mute);margin-top:64px}
-#cm{justify-content:flex-start;overflow-y:auto}.cd{text-decoration:line-through;opacity:.5}.tmr{display:flex;align-items:center;gap:12px;justify-content:space-between;background:#ffffff14;border-radius:14px;padding:8px 8px 8px 16px;margin:6px 0;width:min(420px,100%)}.tmr.fin{background:#3d6bff;animation:p 1s ease-in-out infinite}.tmr button{padding:4px 12px}.cap{color:#fff;font-weight:600;font-size:1.05rem;margin:4px 0 8px;min-height:1.4em}</style>
+#cm{justify-content:flex-start;overflow-y:auto}.cd{text-decoration:line-through;opacity:.5}.tmr{display:flex;align-items:center;gap:12px;justify-content:space-between;background:#ffffff14;border-radius:14px;padding:8px 8px 8px 16px;margin:6px 0;width:min(420px,100%)}.tmr.fin{background:#3d6bff;animation:p 1s ease-in-out infinite}.tmr button{padding:4px 12px}.cap{color:#fff;font-weight:600;font-size:1.05rem;margin:4px 0 8px;min-height:1.4em}label.fb{position:relative;display:inline-flex;align-items:center;gap:8px;justify-content:center;font-weight:500;border:1px solid var(--line);border-radius:8px;padding:10px 18px;cursor:pointer;min-height:44px;margin:0}label.fb input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}</style>
 </head>
 <body>
 <main id="app"></main>
@@ -176,13 +176,13 @@ function swapOpts(cur){const f=st.fav||{},we=vd>=5,L=allR().map((r,i)=>[r,i]).fi
 L.sort((a,b)=>(f[b[0].t]?1:0)-(f[a[0].t]?1:0)||a[0].t.localeCompare(b[0].t));
 return(we?'<option disabled>Wochenende: nur FODMAP-arme und eigene Rezepte</option>':"")+L.map(([r,i])=>`<option value="${i}">${f[r.t]?"★ ":""}${esc(r.t)}${r.mine?" (eigenes)":""}</option>`).join("")}
 function swapTo(v){if(v==="")return;st.sw=st.sw||{};const k=wkN()+"|"+vd;v==="~"?delete st.sw[k]:st.sw[k]=allR()[+v].t;save();render()}
-const CATK={f:/hähnchen|huhn|pute|lachs|fisch|garnele|hack|rind|schwein|wurst|speck|schinken|thunfisch|steak|fleisch/i,k:/käse|milch|joghurt|sahne|butter|quark|\bei\b|eier|feta|mozzarella|parmesan|skyr|tofu/i,v:/nudel|pasta|reis|mehl|dose|linsen|bohnen|kichererbsen|passiert|brühe|couscous|haferflocken|mais|kokosmilch|wrap|brot/i,s:/öl|salz|pfeffer|zucker|essig|gewürz|pulver|chili|zimt|senf|soße|sauce|honig|paste/i},
+const CATK={f:/hähnchen|huhn|pute|lachs|fisch|garnele|hack|rind|schwein|wurst|speck|schinken|thunfisch|steak|fleisch/i,k:/käse|milch|joghurt|sahne|butter|quark|\bei\b|eier|feta|mozzarella|parmesan|skyr|tofu/i,v:/nudel|pasta|reis|mehl|dose|linsen|bohnen|kichererbsen|passiert|brühe|couscous|haferflocken|mais|kokosmilch|wrap|brot/i,s:/kurkuma|kümmel|oregano|thymian|curry|muskat|zimt|öl|salz|pfeffer|zucker|essig|gewürz|pulver|chili|zimt|senf|soße|sauce|honig|paste/i},
 UN=/^(g|kg|ml|l|el|tl|stk|stück|bund|zehen|dose|dosen|pck|packung|prise|scheiben|handvoll)$/i;
 function mineAdd(){const t=$("rt").value.trim().replace(/[;|]/g,","),ls=$("ri").value.split("\n").map(x=>x.trim()).filter(Boolean),ss=$("rs").value.split("\n").map(x=>x.trim()).filter(Boolean);
 if(!t||!ls.length||!ss.length){alert("Bitte Name, mindestens eine Zutat und einen Schritt eintragen.");return}
-const it=ls.map(l=>{l=l.replace(/[;|]/g,",");const m=l.match(/^([\d.,]+)\s*(\S+)?\s*(.*)$/);let q=1,u="Stk",n=l;if(m){q=parseFloat(m[1].replace(",","."))||1;if(m[2]&&UN.test(m[2])){u=m[2];n=m[3]||m[2]}else{n=((m[2]||"")+" "+m[3]).trim()}}
+const it=ls.map(l=>{l=normFr(l.replace(/[;|]/g,","));const m=l.match(/^([\d.,]+)\s*(\S+)?\s*(.*)$/);let q=1,u="Stk",n=l;if(m){q=parseFloat(m[1].replace(",","."))||1;if(m[2]&&UN.test(m[2])){u=m[2];n=m[3]||m[2]}else{n=((m[2]||"")+" "+m[3]).trim()}}
 const c=Object.keys(CATK).find(k=>CATK[k].test(u+" "+n))||"g";return`${c}|${n}|${q}|${u}`}).join(";");
-const r={t,k:"Eigenes Rezept",m:+$("rm").value||30,i:it,s:ss,mine:1};st.mine=(st.mine||[]).filter(x=>x.t!==t).concat([r]);st.sw=st.sw||{};st.sw[wkN()+"|"+vd]=t;save();render()}
+const r={t,k:"Eigenes Rezept",m:+$("rm").value||30,i:it,s:ss,mine:1};st.mine=(st.mine||[]).filter(x=>x.t!==t).concat([r]);st.sw=st.sw||{};st.sw[wkN()+"|"+vd]=t;save();["rt","rm","ri","rs"].forEach(i=>$(i).value="");OCS="";render()}
 function mineDel(){const t=plan()[vd].t;if(!confirm("Eigenes Rezept löschen?"))return;st.mine=st.mine.filter(x=>x.t!==t);for(const k in st.sw)if(st.sw[k]===t)delete st.sw[k];save();render()}
 /* Rückblick */
 let mo=0;function review(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+mo);const y=d.getFullYear(),m=d.getMonth(),off=(d.getDay()+6)%7,n=new Date(y,m+1,0).getDate(),td=day();let c="",act=0,ein=0;
@@ -193,9 +193,57 @@ return`<h2>Rückblick</h2><div class="card"><div class="row" style="justify-cont
 function bkSave(){st.bk=Date.now();save();const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(st)],{type:"application/json"}));a.download="kernzeit-sicherung-"+day()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5e3);render()}
 function bkCopy(b){st.bk=Date.now();save();navigator.clipboard&&navigator.clipboard.writeText(JSON.stringify(st)).then(()=>{b.textContent="Kopiert"}).catch(()=>alert("Kopieren nicht möglich. Nutze „Sicherung speichern“."))}
 function bkLoad(el){const f=el.files[0];if(!f)return;f.text().then(t=>{const o=JSON.parse(t);if(!o||typeof o!=="object"||!o.done)throw 0;if(!confirm("Aktuelle Daten durch die Sicherung ersetzen?"))return;localStorage.setItem("kp",JSON.stringify(o));location.reload()}).catch(()=>alert("Diese Datei ist keine gültige Kernzeit-Sicherung."))}
+/* Rezept-Foto: Texterkennung (Tesseract.js) läuft im Browser, das Foto verlässt dein Gerät nicht */
+I.camera='<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>';
+const FRC={"½":".5","¼":".25","¾":".75","⅓":".33","⅔":".67"},
+NUMU="(?:g|gr|kg|ml|l|el|tl|stk|stück|bund|zehen?|dose|dosen|prise|pck|pkg|packung|scheiben?|handvoll|topf|msp)";
+function normFr(s){return s.replace(/(\d)\s*([½¼¾⅓⅔])/g,(m,a,f)=>String(+a+ +FRC[f])).replace(/[½¼¾⅓⅔]/g,f=>"0"+FRC[f]).replace(/(\d+)\s+(\d)\/(\d)\b/g,(m,a,b,c)=>String(+a+b/c)).replace(/\b(\d)\/(\d)\b/g,(m,a,b)=>String(Math.round(a/b*100)/100))}
+function parseRecipe(raw){
+const tx=normFr(raw.replace(/\r/g,"").replace(/-\n(?=[a-zäöüß])/g,"")),
+L=tx.split("\n").map(x=>x.replace(/^[\s•·*▪●○■□✓–—|-]+/,"").replace(/\s+/g," ").trim()).filter(x=>(x.match(/[A-Za-zÄÖÜäöüß0-9]/g)||[]).length>=2),
+HZ=/^(zutaten|das brauchst du|du brauchst|einkaufsliste)\b/i,HS=/^(zubereitung(?:sschritte)?|anleitung|so geht'?s|so wird'?s gemacht|und so geht'?s|schritte|methode|zubereiten)\b/i,
+STEP=/^(?:schritt\s*)?(\d{1,2})\s*[.):]\s*(.*)$/i,
+isI=x=>!/^\d{1,2}\s*[.):]\s+\S/.test(x)&&x.length<60&&new RegExp("^[\\d.,]+\\s*"+NUMU+"?\\s+\\S","i").test(x),
+pm=tx.match(/(?:für|fuer)\s*(\d+)\s*(?:personen|portionen|pers\b)|(\d+)\s*(?:portionen|personen)\b/i),N=pm&&+(pm[1]||pm[2])>=1&&+(pm[1]||pm[2])<=12?+(pm[1]||pm[2]):2;
+let iz=L.findIndex(x=>HZ.test(x)),is=L.findIndex(x=>HS.test(x)),head,ing=[],stp=[];
+if(iz>=0||is>=0){head=L.slice(0,Math.min(...[iz,is].filter(i=>i>=0)));
+if(iz>=0)ing=L.slice(iz+1,is>iz?is:L.length);if(is>=0)stp=L.slice(is+1,iz>is?iz:L.length)}
+else{head=L.length&&!isI(L[0])&&L[0].length<60?[L[0]]:[];L.slice(head.length).forEach(x=>(isI(x)?ing:stp).push(x))}
+const t=(head.find(x=>x.length>=3&&!/min|zeit|portion|personen|schwierig|kcal|^\d+$/i.test(x))||"").replace(/[;|]/g,",").slice(0,60);
+let m=0;const tl=head.concat(L.filter(x=>/zeit|dauer|gesamt/i.test(x))).map(x=>x.match(/(\d+)\s*(?:h|std\.?|stunden?)\s*(?:(\d+)\s*min)?|(\d+)\s*(?:min\.?|minuten)/i)).find(Boolean);
+if(tl)m=tl[3]?+tl[3]:(+tl[1])*60+(+tl[2]||0);
+ing=ing.filter(x=>!(/:$/.test(x)&&!/\d/.test(x))&&x.length>=3).map(x=>{if(N===2)return x;const q=x.match(/^([\d.,]+)\s*(.*)$/);if(!q)return x;const v=parseFloat(q[1].replace(",","."));return isNaN(v)?x:Math.round(v*2/N*100)/100+" "+q[2]});
+const S=[];let cur=null;stp.forEach(x=>{const q=x.match(STEP);if(q){cur=q[2];S.push(cur===""?"":cur);S[S.length-1]=q[2]}else if(cur!==null)S[S.length-1]+=" "+x;else{S.push(x);cur=x}});
+let steps=S.map(x=>x.trim()).filter(Boolean);
+if(!stp.some(x=>STEP.test(x))){const txt=stp.join(" ").replace(/([.!?])\s+(?=[A-ZÄÖÜ])/g,"$1\n"),parts=[];txt.split("\n").forEach(p=>{p=p.trim();if(!p)return;if(parts.length&&p.length<25)parts[parts.length-1]+=" "+p;else parts.push(p)});steps=parts}
+return{t,m,i:ing.join("\n"),s:steps,N}}
+let OCS="",ocrBusy=0,tsLoad;
+const ocrMsg=m=>{OCS=m;const e=$("ocs");if(e)e.textContent=m},
+tsLoadLib=()=>window.Tesseract?Promise.resolve():tsLoad||(tsLoad=new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";s.onload=ok;s.onerror=()=>{tsLoad=0;no(new Error("lib"))};document.head.appendChild(s)}));
+async function ocrPrep(f){const bmp=await(window.createImageBitmap?createImageBitmap(f):new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=URL.createObjectURL(f)})),
+w0=bmp.width||bmp.naturalWidth,h0=bmp.height||bmp.naturalHeight,sc=Math.min(1,1800/Math.max(w0,h0)),c=document.createElement("canvas");c.width=Math.round(w0*sc);c.height=Math.round(h0*sc);
+const x=c.getContext("2d");x.drawImage(bmp,0,0,c.width,c.height);const d=x.getImageData(0,0,c.width,c.height),p=d.data,hist=new Uint32Array(256),tot=c.width*c.height;
+for(let i=0;i<p.length;i+=4){const g=(p[i]*.3+p[i+1]*.59+p[i+2]*.11)|0;p[i]=g;hist[g]++}
+let lo=0,hi=255,a=0;while(lo<254&&(a+=hist[lo])<tot*.02)lo++;a=0;while(hi>lo+20&&(a+=hist[hi])<tot*.15)hi--;
+for(let i=0;i<p.length;i+=4){const v=Math.max(0,Math.min(255,(p[i]-lo)*255/(hi-lo)));p[i]=p[i+1]=p[i+2]=v}
+x.putImageData(d,0,0);return c}
+function ocrFill(text){const r=parseRecipe(text),set=(id,v,app)=>{const e=$(id);if(!e||!v)return;e.value=app&&e.value.trim()?e.value.trim()+"\n"+v:v};
+if(!r.i&&!r.s.length&&!r.t)return null;if(!$("rt").value.trim())set("rt",r.t);if(!$("rm").value)set("rm",r.m||"");set("ri",r.i,1);set("rs",r.s.join("\n"),1);
+const d=$("rt").closest("details");if(d)d.open=true;return r}
+async function ocrRun(el){const fs=[...el.files];el.value="";if(!fs.length||ocrBusy)return;ocrBusy=1;let wk,got=0,N=2;
+try{ocrMsg("Texterkennung wird geladen (beim ersten Mal ca. 15 MB, das dauert etwas) …");await tsLoadLib();
+wk=await Tesseract.createWorker("deu",1,{logger:m=>{if(m.status==="recognizing text")ocrMsg("Erkenne Text … "+Math.round(m.progress*100)+" %");else if(/loading/.test(m.status))ocrMsg("Lade Sprachdaten …")}});
+for(let i=0;i<fs.length;i++){ocrMsg("Bild "+(i+1)+" von "+fs.length+" wird vorbereitet …");const c=await ocrPrep(fs[i]),{data}=await wk.recognize(c),r=ocrFill(data.text);if(r){got=1;if(r.N!==2)N=r.N}}
+ocrMsg(got?"Fertig. Bitte alles prüfen: Die Texterkennung macht Fehler, besonders bei Mengen und Handschrift."+(N!==2?` Mengen von ${N} auf 2 Portionen umgerechnet.`:""):"Kein Text erkannt. Fotografiere bei gutem Licht, gerade von oben und ohne Schatten.")
+}catch(e){ocrMsg("Texterkennung hat nicht geklappt.");alert("Texterkennung hat nicht geklappt. Du brauchst beim ersten Mal Internet und eine Adresse mit https (z. B. deine GitHub-Pages-Seite).")}
+finally{ocrBusy=0;if(wk)try{wk.terminate()}catch(e){}}}
+/* Formularinhalt bleibt beim automatischen Neuzeichnen erhalten */
+const KEEP=["rt","rm","ri","rs","xi"];
+function keepForm(){const o={v:{},d:[...document.querySelectorAll("#app details")].map(x=>x.open),f:document.activeElement&&document.activeElement.id};KEEP.forEach(i=>{const e=$(i);if(e)o.v[i]=e.value});return o}
+function restoreForm(o){KEEP.forEach(i=>{const e=$(i);if(e&&o.v[i]!==undefined)e.value=o.v[i]});document.querySelectorAll("#app details").forEach((x,i)=>{if(o.d[i])x.open=true});if(o.f&&KEEP.includes(o.f)){const e=$(o.f);if(e)e.focus()}}
 /* Eigene Einkäufe */
 const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function xAdd(){const v=$("xi").value.trim();if(!v)return;st.extra=st.extra||[];st.extra.push({n:v,d:0});save();render();const e=$("xi");if(e)e.focus()}
+function xAdd(){const v=$("xi").value.trim();if(!v)return;$("xi").value="";st.extra=st.extra||[];st.extra.push({n:v,d:0});save();render();const e=$("xi");if(e)e.focus()}
 function xTog(i){st.extra[i].d=st.extra[i].d?0:1;save();render()}
 function xDel(i){st.extra.splice(i,1);save();render()}
 function xClear(){st.extra=(st.extra||[]).filter(x=>!x.d);save();render()}
@@ -208,7 +256,7 @@ let h=`<h2 id="kt">Abendessen</h2><div class="row" style="margin:0 0 12px"><sele
 <p style="margin:20px 0 6px;display:flex;justify-content:space-between"><b>Zutaten</b><a href="#" onclick="ckReset();return false" style="color:var(--mute);font-size:.85rem">Zurücksetzen</a></p>${parse(r).map(x=>ingL(r,x)).join("")}
 <p style="margin:20px 0 6px"><b>Zubereitung</b></p><ol style="padding-left:20px;margin:0">${r.s.map(x=>`<li style="margin:8px 0">${x}</li>`).join("")}</ol>
 <div class="row"><button onclick="cookStart()">Schritt für Schritt kochen</button>${!isT?"":cooked?`<span class="done">${ic("check",16)} Gekocht</span>`:`<button onclick="cook()">Gekocht (+20 XP)</button>`}</div></div>
-<details class="card"><summary><b>Eigenes Rezept hinzufügen</b></summary><div style="display:grid;gap:8px;margin-top:10px"><input id="rt" type="text" placeholder="Name des Gerichts" maxlength="60"><input id="rm" type="number" min="1" placeholder="Minuten" style="width:120px"><textarea id="ri" rows="5" placeholder="Zutaten, eine pro Zeile, z. B.&#10;250 g Nudeln&#10;2 Stk Zucchini&#10;1 Dose Tomaten" style="font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></textarea><textarea id="rs" rows="5" placeholder="Schritte, einer pro Zeile (Zeitangaben wie 10 Minuten bekommen automatisch einen Timer)" style="font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></textarea><button onclick="mineAdd()">Speichern und für ${DAYS[vd]} einplanen</button><small style="color:var(--mute)">Die Zutaten landen automatisch in der Einkaufsliste, sortiert nach Stichwörtern (kann ungenau sein).</small></div></details><h2>Einkaufsliste für ${wo?"nächste":"diese"} Woche</h2><p style="margin:0 0 16px;color:var(--mute);font-size:.9rem">Alle frischen Zutaten sind so verplant, dass sie bis Sonntag komplett verbraucht sind. Grau markierte Vorräte hast du meist zu Hause.</p>`;
+<details class="card"><summary><b>Eigenes Rezept hinzufügen</b></summary><div style="display:grid;gap:8px;margin-top:10px"><div class="row" style="margin:0"><label class="ghost fb">${ic("camera",18)} Foto aufnehmen<input type="file" accept="image/*" capture="environment" onchange="ocrRun(this)"></label><label class="ghost fb">Aus Galerie wählen<input type="file" accept="image/*" multiple onchange="ocrRun(this)"></label></div><small id="ocs" style="color:var(--mute)">${OCS||"Foto vom Kochbuch oder Zettel: Der Text wird erkannt und unten eingetragen. Du prüfst und korrigierst ihn danach. Mehrere Fotos nacheinander werden zusammengefügt."}</small><input id="rt" type="text" placeholder="Name des Gerichts" maxlength="60"><input id="rm" type="number" min="1" placeholder="Minuten" style="width:120px"><textarea id="ri" rows="5" placeholder="Zutaten, eine pro Zeile, z. B.&#10;250 g Nudeln&#10;2 Stk Zucchini&#10;1 Dose Tomaten" style="font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></textarea><textarea id="rs" rows="5" placeholder="Schritte, einer pro Zeile (Zeitangaben wie 10 Minuten bekommen automatisch einen Timer)" style="font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></textarea><button onclick="mineAdd()">Speichern und für ${DAYS[vd]} einplanen</button><small style="color:var(--mute)">Die Zutaten landen automatisch in der Einkaufsliste, sortiert nach Stichwörtern (kann ungenau sein). Mengen bitte für 2 Portionen angeben.</small></div></details><h2>Einkaufsliste für ${wo?"nächste":"diese"} Woche</h2><p style="margin:0 0 16px;color:var(--mute);font-size:.9rem">Alle frischen Zutaten sind so verplant, dass sie bis Sonntag komplett verbraucht sind. Grau markierte Vorräte hast du meist zu Hause.</p>`;
 const agg={},L={g:"Obst & Gemüse",f:"Fisch & Fleisch",k:"Kühlregal",v:"Trockenware & Dosen",s:"Vorrat prüfen"};
 h+=extraCard();const dn={};PL.forEach(r=>parse(r).forEach(x=>{const k=x.c+"|"+x.n+"|"+x.u;agg[k]=(agg[k]||0)+x.q;if((st.ck||{})[r.t+"|"+x.n])dn[k]=(dn[k]||0)+x.q}));
 for(const c of"gfkvs"){const ks=Object.keys(agg).filter(k=>k[0]===c);
@@ -261,7 +309,7 @@ function fmt(ts){return new Date(ts).toLocaleTimeString("de",{hour:"2-digit",min
 /* Erinnerungen */
 const fired={};
 function check(){for(const s of["m","e"]){if(due(s)){const t=target(s);if(fired[s]!==t){fired[s]=t;ping(s)}}}
-if(!$("pl").classList.contains("on"))render()}
+if(!$("pl").classList.contains("on")&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)&&!ocrBusy)render()}
 function ping(s){beep();if(st.notif&&"Notification"in window&&Notification.permission==="granted"){const t=S[s].name,o={body:"10 Minuten für dich. Jetzt starten oder verschieben?",icon:ICON};const f=()=>{try{new Notification(t,o)}catch(e){}};try{navigator.serviceWorker.ready.then(r=>r.showNotification(t,o)).catch(f)}catch(e){f()}}}
 function askNotif(){if(!("Notification"in window)){alert("Dieser Browser unterstützt keine Benachrichtigungen.");return}
 Notification.requestPermission().then(p=>{st.notif=p==="granted"?1:0;save();render()})}
@@ -385,7 +433,7 @@ ${px().on?`<label>Nachrichten pro Tag<select onchange="pxSet('n',this.value)">${
 <small>Die Nachrichten werden beim Öffnen der App bis zu 2,5 Tage im Voraus eingeplant. Öffne sie daher mindestens alle 2 Tage. Beim Ausschalten kommen schon geplante Nachrichten nicht mehr an, sobald du das Thema in ntfy entfernst. Es werden nur das zufällige Thema und der Nachrichtentext an ntfy.sh gesendet.</small>`:""}</div>
 <h2>Datensicherung</h2><div class="card"><p style="margin:0 0 8px;color:var(--mute);font-size:.9rem">Deine Daten liegen nur in diesem Browser. Sichere sie regelmäßig, damit Serie, XP und Abzeichen nicht verloren gehen.${st.bk?` Letzte Sicherung: ${new Date(st.bk).toLocaleDateString("de")}.`:" Noch keine Sicherung."}</p><div class="row"><button onclick="bkSave()">Sicherung speichern</button><button class="ghost" onclick="bkCopy(this)">Kopieren</button></div><div class="row"><label style="color:var(--mute);font-size:.9rem">Wiederherstellen<input type="file" accept=".json,application/json" onchange="bkLoad(this)"></label></div></div>
 <p class="note">Kein Ersatz für ärztlichen Rat. Bei Schmerzen (nicht nur Dehngefühl), Schwindel oder Brustschmerz stoppen und abklären lassen. Bei starken Nackenverspannungen helfen zusätzlich Wärme und regelmäßige Bildschirmpausen.</p>`;
-const a=$("app"),y=scrollY;a.innerHTML=h;scrollTo(0,y)}
+const a=$("app"),y=scrollY,kf=keepForm();a.innerHTML=h;restoreForm(kf);scrollTo(0,y)}
 /* Scroll-Pausen per ntfy.sh: geplante Push-Nachrichten, Tipp öffnet direkt die Übung */
 const PXM=["Scrollst du gerade? 45 Sekunden Pause für Nacken und Rücken: tippen und los.","Kurz den Daumen stoppen? Eine 45-Sekunden-Übung wartet auf dich.","Doomscrollen? Tausch die nächsten 45 Sekunden gegen eine Dehnung.","Dein Nacken meldet sich. Tippen für eine kurze Übung statt weiterem Feed."];
 let pxBusy=0;const px=()=>st.px=Object.assign({on:0,topic:"",n:3,a:"10:00",b:"21:00",qa:"",qb:"",txt:"",sched:[]},st.px||{}),
