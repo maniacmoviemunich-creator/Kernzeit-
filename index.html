@@ -198,11 +198,13 @@ I.camera='<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'
 const FRC={"½":".5","¼":".25","¾":".75","⅓":".33","⅔":".67"},
 NUMU="(?:g|gr|kg|ml|l|el|tl|stk|stück|bund|zehen?|dose|dosen|prise|pck|pkg|packung|scheiben?|handvoll|topf|msp)";
 function normFr(s){return s.replace(/(\d)\s*([½¼¾⅓⅔])/g,(m,a,f)=>String(+a+ +FRC[f])).replace(/[½¼¾⅓⅔]/g,f=>"0"+FRC[f]).replace(/(\d+)\s+(\d)\/(\d)\b/g,(m,a,b,c)=>String(+a+b/c)).replace(/\b(\d)\/(\d)\b/g,(m,a,b)=>String(Math.round(a/b*100)/100))}
+/* typische Erkennungsfehler am Zeilenanfang und in Zahlen korrigieren */
+const fixQ=s=>s.split("\n").map(x=>x.replace(/^\s*[lI|!]\s*([.):])\s+/,"1$1 ").replace(/^\s*[lI|!]\s+(?=[A-Za-zÄÖÜäöü])/,"1 ").replace(/^\s*[%¥]\s*(?=\S)/,"½ ").replace(/^\s*(\d)(\d)\/(\d)\b/,(m,a,b,c)=>+b<+c?a+" "+b+"/"+c:m).replace(/\b(\d+)([Oo]+)\b/g,(m,a,o)=>a+"0".repeat(o.length))).join("\n");
 function parseRecipe(raw){
-const tx=normFr(raw.replace(/\r/g,"").replace(/-\n(?=[a-zäöüß])/g,"")),
+const tx=normFr(fixQ(raw.replace(/\r/g,"").replace(/-\n(?=[a-zäöüß])/g,""))),
 L=tx.split("\n").map(x=>x.replace(/^[\s•·*▪●○■□✓–—|-]+/,"").replace(/\s+/g," ").trim()).filter(x=>(x.match(/[A-Za-zÄÖÜäöüß0-9]/g)||[]).length>=2),
-HZ=/^(zutaten|das brauchst du|du brauchst|einkaufsliste)\b/i,HS=/^(zubereitung(?:sschritte)?|anleitung|so geht'?s|so wird'?s gemacht|und so geht'?s|schritte|methode|zubereiten)\b/i,
-STEP=/^(?:schritt\s*)?(\d{1,2})\s*[.):]\s*(.*)$/i,
+HZ=/^(?:\S{1,2}\s+){0,3}(zutaten|das brauchst du|du brauchst|einkaufsliste)\b/i,HS=/^(?:\S{1,2}\s+){0,3}(zubereitung(?:sschritte)?|anleitung|so geht'?s|so wird'?s gemacht|und so geht'?s|schritte|methode|zubereiten)\b/i,
+STEP=/^(?:\S{1,2}\s+){0,2}?(?:schritt\s*)?(\d{1,2})\s*[.):]\s*(.*)$/i,
 isI=x=>!/^\d{1,2}\s*[.):]\s+\S/.test(x)&&x.length<60&&new RegExp("^[\\d.,]+\\s*"+NUMU+"?\\s+\\S","i").test(x),
 pm=tx.match(/(?:für|fuer)\s*(\d+)\s*(?:personen|portionen|pers\b)|(\d+)\s*(?:portionen|personen)\b/i),N=pm&&+(pm[1]||pm[2])>=1&&+(pm[1]||pm[2])<=12?+(pm[1]||pm[2]):2;
 let iz=L.findIndex(x=>HZ.test(x)),is=L.findIndex(x=>HS.test(x)),head,ing=[],stp=[];
@@ -217,32 +219,69 @@ const S=[];let cur=null;stp.forEach(x=>{const q=x.match(STEP);if(q){cur=q[2];S.p
 let steps=S.map(x=>x.trim()).filter(Boolean);
 if(!stp.some(x=>STEP.test(x))){const txt=stp.join(" ").replace(/([.!?])\s+(?=[A-ZÄÖÜ])/g,"$1\n"),parts=[];txt.split("\n").forEach(p=>{p=p.trim();if(!p)return;if(parts.length&&p.length<25)parts[parts.length-1]+=" "+p;else parts.push(p)});steps=parts}
 return{t,m,i:ing.join("\n"),s:steps,N}}
-let OCS="",ocrBusy=0,tsLoad;
+let OCS="",ocrBusy=0;
+const TSB=[
+{n:"jsDelivr",lib:"https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js",worker:"https://cdn.jsdelivr.net/npm/tesseract.js@v5.1.1/dist/worker.min.js",core:"https://cdn.jsdelivr.net/npm/tesseract.js-core@v5.1.1",lang:"https://cdn.jsdelivr.net/npm/@tesseract.js-data/deu/4.0.0_best_int"},
+{n:"unpkg",lib:"https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js",worker:"https://unpkg.com/tesseract.js@5.1.1/dist/worker.min.js",core:"https://unpkg.com/tesseract.js-core@5.1.1",lang:"https://unpkg.com/@tesseract.js-data/deu@1.0.0/4.0.0_best_int"}];
 const ocrMsg=m=>{OCS=m;const e=$("ocs");if(e)e.textContent=m},
-tsLoadLib=()=>window.Tesseract?Promise.resolve():tsLoad||(tsLoad=new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";s.onload=ok;s.onerror=()=>{tsLoad=0;no(new Error("lib"))};document.head.appendChild(s)}));
-async function ocrPrep(f){const bmp=await(window.createImageBitmap?createImageBitmap(f):new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=URL.createObjectURL(f)})),
-w0=bmp.width||bmp.naturalWidth,h0=bmp.height||bmp.naturalHeight,sc=Math.min(1,1800/Math.max(w0,h0)),c=document.createElement("canvas");c.width=Math.round(w0*sc);c.height=Math.round(h0*sc);
-const x=c.getContext("2d");x.drawImage(bmp,0,0,c.width,c.height);const d=x.getImageData(0,0,c.width,c.height),p=d.data,hist=new Uint32Array(256),tot=c.width*c.height;
-for(let i=0;i<p.length;i+=4){const g=(p[i]*.3+p[i+1]*.59+p[i+2]*.11)|0;p[i]=g;hist[g]++}
-let lo=0,hi=255,a=0;while(lo<254&&(a+=hist[lo])<tot*.02)lo++;a=0;while(hi>lo+20&&(a+=hist[hi])<tot*.15)hi--;
-for(let i=0;i<p.length;i+=4){const v=Math.max(0,Math.min(255,(p[i]-lo)*255/(hi-lo)));p[i]=p[i+1]=p[i+2]=v}
-x.putImageData(d,0,0);return c}
+errTxt=e=>String(e&&e.message||e||"unbekannt").replace(/\s+/g," ").slice(0,140),
+tmo=(p,ms,w)=>Promise.race([p,new Promise((ok,no)=>setTimeout(()=>no(new Error(w+": Zeitüberschreitung")),ms))]),
+tsLoadLib=b=>window.Tesseract?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement("script");s.src=b.lib;s.onload=()=>window.Tesseract?ok():no(new Error("Bibliothek leer"));s.onerror=()=>{s.remove();no(new Error("Bibliothek nicht ladbar"))};document.head.appendChild(s)});
+/* Worker starten: zuerst jsDelivr, bei Fehlern automatisch die zweite Quelle. Gibt Worker oder wirft alle Fehler gesammelt. */
+async function tsWorker(){const errs=[];
+for(const b of TSB){let wk;try{ocrMsg("Texterkennung wird geladen ("+b.n+"; beim ersten Mal ca. 15 MB, das dauert etwas) …");
+await tmo(tsLoadLib(b),30000,"Bibliothek");
+wk=await tmo(Tesseract.createWorker("deu",1,{workerPath:b.worker,corePath:b.core,langPath:b.lang,logger:m=>{if(m.status==="recognizing text")ocrMsg("Erkenne Text … "+Math.round(m.progress*100)+" %");else if(/loading|initializ/.test(m.status))ocrMsg("Lade "+(/language/.test(m.status)?"Sprachdaten":"Erkennungsmodul")+" ("+b.n+") "+(m.progress>0&&m.progress<1?Math.round(m.progress*100)+" %":"…"))}}),240000,"Modul laden");
+try{await wk.setParameters({user_defined_dpi:"300"})}catch(e){}
+return wk}catch(e){errs.push(b.n+": "+errTxt(e));if(wk)try{wk.terminate()}catch(x){}}}
+throw new Error(errs.join(" | "))}
+/* Bild laden (EXIF-Drehung wird vom Browser beachtet), verkleinern/vergrößern, Schatten herausrechnen */
+function ocrLoad(f){return new Promise((ok,no)=>{const u=URL.createObjectURL(f),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);ok(i)};i.onerror=()=>{URL.revokeObjectURL(u);(window.createImageBitmap?createImageBitmap(f):Promise.reject()).then(ok,()=>no(new Error("Bild nicht lesbar")))};i.src=u})}
+function ocrRot(c,r){if(!r)return c;const o=document.createElement("canvas"),q=r%2;o.width=q?c.height:c.width;o.height=q?c.width:c.height;const x=o.getContext("2d");x.translate(o.width/2,o.height/2);x.rotate(r*Math.PI/2);x.drawImage(c,-c.width/2,-c.height/2);return o}
+/* zwei Aufbereitungen: "s" = Kontrast strecken (Standard), "n" = Schatten herausrechnen (nur wenn "s" schlecht ist) */
+const ocrGray=(c,fn)=>{const o=document.createElement("canvas");o.width=c.width;o.height=c.height;const x=o.getContext("2d");x.drawImage(c,0,0);const d=x.getImageData(0,0,o.width,o.height),p=d.data,n=o.width*o.height,g=new Float32Array(n);
+for(let i=0,j=0;j<n;i+=4,j++)g[j]=p[i]*.3+p[i+1]*.59+p[i+2]*.11;const v=fn(g,o.width,o.height);for(let i=0,j=0;j<n;i+=4,j++)p[i]=p[i+1]=p[i+2]=v[j];x.putImageData(d,0,0);return o},
+ocrStretch=(g,w,h)=>{const n=w*h,hist=new Uint32Array(256);for(let j=0;j<n;j++)hist[g[j]|0]++;let lo=0,hi=255,a=0;while(lo<254&&(a+=hist[lo])<n*.02)lo++;a=0;while(hi>lo+20&&(a+=hist[hi])<n*.15)hi--;
+const o=new Float32Array(n);for(let j=0;j<n;j++)o[j]=Math.max(0,Math.min(255,(g[j]-lo)*255/(hi-lo)));return o},
+ocrFlat=(g,w,h)=>{const n=w*h,W1=w+1,I=new Float64Array(W1*(h+1)),hist=new Uint32Array(256);
+for(let j=0;j<n;j++)hist[g[j]|0]++;let a=0,P=255;while(P>0&&(a+=hist[P])<n*.1)P--;P=Math.max(P,60);
+for(let y=0;y<h;y++){let s=0;for(let x=0;x<w;x++){s+=g[y*w+x];I[(y+1)*W1+x+1]=I[y*W1+x+1]+s}}
+const R=Math.max(12,Math.round(Math.min(w,h)/14)),o=new Float32Array(n);
+for(let y=0;y<h;y++){const y0=Math.max(0,y-R),y1=Math.min(h,y+R+1);for(let x=0;x<w;x++){const x0=Math.max(0,x-R),x1=Math.min(w,x+R+1),
+m=(I[y1*W1+x1]-I[y0*W1+x1]-I[y1*W1+x0]+I[y0*W1+x0])/((x1-x0)*(y1-y0));
+o[y*w+x]=m<P*.3?g[y*w+x]/P*100:Math.min(255,g[y*w+x]/Math.max(30,m)*215)}}return o};
+async function ocrPrep(f){const im=await ocrLoad(f),w0=im.naturalWidth||im.width,h0=im.naturalHeight||im.height,L=Math.max(w0,h0),
+sc=L>2400?2400/L:L<1500?Math.min(2,1600/L):1,w=Math.max(1,Math.round(w0*sc)),h=Math.max(1,Math.round(h0*sc)),c=document.createElement("canvas");c.width=w;c.height=h;
+const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,w,h);x.drawImage(im,0,0,w,h);const ca={};
+return m=>ca[m]||(ca[m]=ocrGray(c,m==="n"?ocrFlat:ocrStretch))}
+const ocrScore=d=>{const t=(d.text||"").replace(/\s/g,"");return(d.confidence||0)*Math.min(t.length,500)},
+ocrOk=d=>d.confidence>=65&&d.text.replace(/\s/g,"").length>=50;
+/* erkennt Text; ist das Ergebnis schlecht, wird erst anders aufbereitet, dann das Foto um 90/270/180 Grad gedreht */
+async function ocrBest(wk,get){const OCD=window.OCD=[],rec=async(m,r)=>{const d=(await wk.recognize(ocrRot(get(m),r))).data;OCD.push([m,r,Math.round(d.confidence),d.text.length]);return d};
+let best=await rec("s",0),bm="s";
+if(!ocrOk(best)){ocrMsg("Bild wird anders aufbereitet …");const d=await rec("n",0);if(ocrScore(d)>ocrScore(best)){best=d;bm="n"}}
+if(!ocrOk(best)){ocrMsg("Prüfe Drehung des Fotos …");for(const r of[1,3,2]){const d=await rec(bm,r);if(ocrScore(d)>ocrScore(best)*1.3)best=d;if(ocrOk(best))break}}
+return best}
 function ocrFill(text){const r=parseRecipe(text),set=(id,v,app)=>{const e=$(id);if(!e||!v)return;e.value=app&&e.value.trim()?e.value.trim()+"\n"+v:v};
-if(!r.i&&!r.s.length&&!r.t)return null;if(!$("rt").value.trim())set("rt",r.t);if(!$("rm").value)set("rm",r.m||"");set("ri",r.i,1);set("rs",r.s.join("\n"),1);
-const d=$("rt").closest("details");if(d)d.open=true;return r}
-async function ocrRun(el){const fs=[...el.files];el.value="";if(!fs.length||ocrBusy)return;ocrBusy=1;let wk,got=0,N=2;
-try{ocrMsg("Texterkennung wird geladen (beim ersten Mal ca. 15 MB, das dauert etwas) …");await tsLoadLib();
-wk=await Tesseract.createWorker("deu",1,{logger:m=>{if(m.status==="recognizing text")ocrMsg("Erkenne Text … "+Math.round(m.progress*100)+" %");else if(/loading/.test(m.status))ocrMsg("Lade Sprachdaten …")}});
-for(let i=0;i<fs.length;i++){ocrMsg("Bild "+(i+1)+" von "+fs.length+" wird vorbereitet …");const c=await ocrPrep(fs[i]),{data}=await wk.recognize(c),r=ocrFill(data.text);if(r){got=1;if(r.N!==2)N=r.N}}
-ocrMsg(got?"Fertig. Bitte alles prüfen: Die Texterkennung macht Fehler, besonders bei Mengen und Handschrift."+(N!==2?` Mengen von ${N} auf 2 Portionen umgerechnet.`:""):"Kein Text erkannt. Fotografiere bei gutem Licht, gerade von oben und ohne Schatten.")
-}catch(e){ocrMsg("Texterkennung hat nicht geklappt.");alert("Texterkennung hat nicht geklappt. Du brauchst beim ersten Mal Internet und eine Adresse mit https (z. B. deine GitHub-Pages-Seite).")}
+if(!r.i&&!r.s.length&&!r.t)return null;const rt=$("rt"),rm=$("rm");if(rt&&!rt.value.trim())set("rt",r.t);if(rm&&!rm.value)set("rm",r.m||"");set("ri",r.i,1);set("rs",r.s.join("\n"),1);
+const d=rt&&rt.closest("details");if(d)d.open=true;return r}
+async function ocrRun(el){const fs=[...el.files];el.value="";if(!fs.length||ocrBusy)return;ocrBusy=1;let wk,got=0,N=2,st="Start";
+try{st="Laden";wk=await tsWorker();
+for(let i=0;i<fs.length;i++){st="Bild "+(i+1);ocrMsg("Bild "+(i+1)+" von "+fs.length+" wird vorbereitet …");const c=await ocrPrep(fs[i]);
+st="Erkennung";ocrMsg("Erkenne Text … ");const d=await ocrBest(wk,c);st="Auswertung";const r=ocrFill(d.text);if(r){got=1;if(r.N!==2)N=r.N}}
+ocrMsg(got?"Fertig. Bitte alles prüfen: Die Texterkennung macht Fehler, besonders bei Mengen und Handschrift."+(N!==2?` Mengen von ${N} auf 2 Portionen umgerechnet.`:""):"Kein Rezepttext erkannt. Fotografiere bei gutem Licht, gerade von oben und ohne Schatten, oder nutze „Text einfügen“ unten.")
+}catch(e){ocrMsg("Texterkennung hat nicht geklappt ("+st+"): "+errTxt(e)+". Du kannst unten stattdessen „Text einfügen“ nutzen.")}
 finally{ocrBusy=0;if(wk)try{wk.terminate()}catch(e){}}}
+/* Alternative ohne Texterkennung: Text einfügen (z. B. mit Google Lens oder iOS-Livetext aus dem Foto kopiert) */
+function ocrPaste(){const t=$("otx"),v=t?t.value.trim():"";if(!v){ocrMsg("Bitte erst den Rezepttext einfügen.");return}
+const r=ocrFill(v);ocrMsg(r?"Text übernommen. Bitte alles prüfen."+(r.N!==2?` Mengen von ${r.N} auf 2 Portionen umgerechnet.`:""):"Im Text wurden keine Zutaten oder Schritte gefunden.");if(r&&t)t.value=""}
 /* Formularinhalt bleibt beim automatischen Neuzeichnen erhalten */
-const KEEP=["rt","rm","ri","rs","xi"];
+const KEEP=["rt","rm","ri","rs","xi","otx"];
 function keepForm(){const o={v:{},d:[...document.querySelectorAll("#app details")].map(x=>x.open),f:document.activeElement&&document.activeElement.id};KEEP.forEach(i=>{const e=$(i);if(e)o.v[i]=e.value});return o}
 function restoreForm(o){KEEP.forEach(i=>{const e=$(i);if(e&&o.v[i]!==undefined)e.value=o.v[i]});document.querySelectorAll("#app details").forEach((x,i)=>{if(o.d[i])x.open=true});if(o.f&&KEEP.includes(o.f)){const e=$(o.f);if(e)e.focus()}}
 /* Neuheiten: bei jedem Update VERSION erhöhen und oben einen Eintrag ergänzen */
-const VERSION=10,NEWS=[
+const VERSION=11,NEWS=[
+[11,"Texterkennung für Rezepte verbessert","Das Foto wird jetzt besser aufbereitet (Schatten werden herausgerechnet, mehr Auflösung) und bei Bedarf automatisch gedreht. Wenn eine Quelle nicht erreichbar ist, wird eine zweite probiert, und bei Fehlern steht jetzt genau da, woran es lag. Neu: „Text einfügen“, falls die Erkennung nicht klappt (z. B. Text mit Google Lens oder iOS-Livetext kopieren). Typische Fehler wie „%“ statt ½ oder „l“ statt 1 werden korrigiert."],
 [10,"Mehr Übungen für Beckenboden, Herz und Kraft","10 neue Übungen mit Animation: Beckenboden entspannen, Glückliches Baby, Tiefe Hocke und Beckenkippen (Beckenboden und Hüfte), Skater-Schritte, Bergsteiger, Schattenboxen und Wadenheben (Herz-Kreislauf), Liegestütze auf den Knien und Superman (Kraft). Viele wechseln täglich mit den alten Übungen, damit es abwechslungsreich bleibt. Ab Stufe „Stärke“ kommen die Kraftübungen als Extra dazu. Eine Einheit bleibt bei höchstens 10 Minuten."],
 [9,"Rezepte fotografieren","Unter „Eigenes Rezept“ ein Foto aufnehmen oder aus der Galerie wählen. Name, Zutaten, Schritte und Zeit werden erkannt und eingetragen, du prüfst sie nur noch."],
 [8,"Bouldern und Punkte nach Dauer","Bouldern ist bei „Woanders trainiert?“ dabei. Die XP für andere Sporteinheiten hängen jetzt von der Länge ab: von 30 XP (10 Min) bis 130 XP (ab 90 Min)."],
@@ -272,7 +311,7 @@ let h=`<h2 id="kt">Abendessen</h2><div class="row" style="margin:0 0 12px"><sele
 <p style="margin:20px 0 6px;display:flex;justify-content:space-between"><b>Zutaten</b><a href="#" onclick="ckReset();return false" style="color:var(--mute);font-size:.85rem">Zurücksetzen</a></p>${parse(r).map(x=>ingL(r,x)).join("")}
 <p style="margin:20px 0 6px"><b>Zubereitung</b></p><ol style="padding-left:20px;margin:0">${r.s.map(x=>`<li style="margin:8px 0">${x}</li>`).join("")}</ol>
 <div class="row"><button onclick="cookStart()">Schritt für Schritt kochen</button>${!isT?"":cooked?`<span class="done">${ic("check",16)} Gekocht</span>`:`<button onclick="cook()">Gekocht (+20 XP)</button>`}</div></div>
-<details class="card"><summary><b>Eigenes Rezept hinzufügen</b></summary><div style="display:grid;gap:8px;margin-top:10px"><div class="row" style="margin:0"><label class="ghost fb">${ic("camera",18)} Foto aufnehmen<input type="file" accept="image/*" capture="environment" onchange="ocrRun(this)"></label><label class="ghost fb">Aus Galerie wählen<input type="file" accept="image/*" multiple onchange="ocrRun(this)"></label></div><small id="ocs" style="color:var(--mute)">${OCS||"Foto vom Kochbuch oder Zettel: Der Text wird erkannt und unten eingetragen. Du prüfst und korrigierst ihn danach. Mehrere Fotos nacheinander werden zusammengefügt."}</small><input id="rt" type="text" placeholder="Name des Gerichts" maxlength="60"><input id="rm" type="number" min="1" placeholder="Minuten" style="width:120px"><textarea id="ri" rows="5" placeholder="Zutaten, eine pro Zeile, z. B.&#10;250 g Nudeln&#10;2 Stk Zucchini&#10;1 Dose Tomaten" style="font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></textarea><textarea id="rs" rows="5" placeholder="Schritte, einer pro Zeile (Zeitangaben wie 10 Minuten bekommen automatisch einen Timer)" style="font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></textarea><button onclick="mineAdd()">Speichern und für ${DAYS[vd]} einplanen</button><small style="color:var(--mute)">Die Zutaten landen automatisch in der Einkaufsliste, sortiert nach Stichwörtern (kann ungenau sein). Mengen bitte für 2 Portionen angeben.</small></div></details><h2>Einkaufsliste für ${wo?"nächste":"diese"} Woche</h2><p style="margin:0 0 16px;color:var(--mute);font-size:.9rem">Alle frischen Zutaten sind so verplant, dass sie bis Sonntag komplett verbraucht sind. Grau markierte Vorräte hast du meist zu Hause.</p>`;
+<details class="card"><summary><b>Eigenes Rezept hinzufügen</b></summary><div style="display:grid;gap:8px;margin-top:10px"><div class="row" style="margin:0"><label class="ghost fb">${ic("camera",18)} Foto aufnehmen<input type="file" accept="image/*" capture="environment" onchange="ocrRun(this)"></label><label class="ghost fb">Aus Galerie wählen<input type="file" accept="image/*" multiple onchange="ocrRun(this)"></label></div><small id="ocs" style="color:var(--mute)">${OCS||"Foto vom Kochbuch oder Zettel: Der Text wird erkannt und unten eingetragen. Du prüfst und korrigierst ihn danach. Mehrere Fotos nacheinander werden zusammengefügt."}</small><details style="margin:0"><summary style="font-size:.9rem;color:var(--mute)">Oder: Text einfügen (ohne Texterkennung)</summary><div style="display:grid;gap:8px;margin-top:8px"><textarea id="otx" rows="4" placeholder="Rezepttext hier einfügen. Tipp: Auf dem Handy das Foto mit Google Lens oder iOS-Livetext öffnen, Text kopieren und hier einfügen." style="font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></textarea><button class="ghost" onclick="ocrPaste()">Text übernehmen</button></div></details><input id="rt" type="text" placeholder="Name des Gerichts" maxlength="60"><input id="rm" type="number" min="1" placeholder="Minuten" style="width:120px"><textarea id="ri" rows="5" placeholder="Zutaten, eine pro Zeile, z. B.&#10;250 g Nudeln&#10;2 Stk Zucchini&#10;1 Dose Tomaten" style="font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></textarea><textarea id="rs" rows="5" placeholder="Schritte, einer pro Zeile (Zeitangaben wie 10 Minuten bekommen automatisch einen Timer)" style="font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></textarea><button onclick="mineAdd()">Speichern und für ${DAYS[vd]} einplanen</button><small style="color:var(--mute)">Die Zutaten landen automatisch in der Einkaufsliste, sortiert nach Stichwörtern (kann ungenau sein). Mengen bitte für 2 Portionen angeben.</small></div></details><h2>Einkaufsliste für ${wo?"nächste":"diese"} Woche</h2><p style="margin:0 0 16px;color:var(--mute);font-size:.9rem">Alle frischen Zutaten sind so verplant, dass sie bis Sonntag komplett verbraucht sind. Grau markierte Vorräte hast du meist zu Hause.</p>`;
 const agg={},L={g:"Obst & Gemüse",f:"Fisch & Fleisch",k:"Kühlregal",v:"Trockenware & Dosen",s:"Vorrat prüfen"};
 h+=extraCard();const dn={};PL.forEach(r=>parse(r).forEach(x=>{const k=x.c+"|"+x.n+"|"+x.u;agg[k]=(agg[k]||0)+x.q;if((st.ck||{})[r.t+"|"+x.n])dn[k]=(dn[k]||0)+x.q}));
 for(const c of"gfkvs"){const ks=Object.keys(agg).filter(k=>k[0]===c);
